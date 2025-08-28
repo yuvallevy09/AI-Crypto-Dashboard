@@ -1,0 +1,16 @@
+{
+  "name": "crypto-dashboard",
+  "private": true,
+  "workspaces": ["frontend", "backend", "shared"],
+  "packageManager": "npm@10",
+  "scripts": {
+    "dev": "concurrently \"npm:dev:backend\" \"npm:dev:frontend\"",
+    "dev:backend": "npm --workspace backend run dev",
+    "dev:frontend": "npm --workspace frontend run dev",
+    "build": "npm -ws run build",
+    "lint": "npm -ws run lint || true",
+    "typecheck": "npm -ws run typecheck || true",
+    "postinstall": "npm -ws run build --if-present && npm -ws run prisma:generate --if-present"
+  },
+  "devDependencies": { "concurrently": "^8.2.0" }
+}
