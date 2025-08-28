@@ -12,8 +12,18 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Menu, User, Settings, LogOut, TrendingUp } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { useAuth } from "@/contexts/auth-context"
 
 export function Header() {
+  const router = useRouter()
+  const { logout, user } = useAuth()
+
+  const handleLogout = async () => {
+    await logout()
+    router.push("/auth")
+  }
+
   return (
     <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-14 items-center">
@@ -56,9 +66,9 @@ export function Header() {
               <DropdownMenuContent className="w-56" align="end" forceMount>
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">User</p>
+                    <p className="text-sm font-medium leading-none">{user?.username || "User"}</p>
                     <p className="text-xs leading-none text-muted-foreground">
-                      user@example.com
+                      {user?.email || "user@example.com"}
                     </p>
                   </div>
                 </DropdownMenuLabel>
@@ -72,7 +82,7 @@ export function Header() {
                   <span>Settings</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={handleLogout}>
                   <LogOut className="mr-2 h-4 w-4" />
                   <span>Log out</span>
                 </DropdownMenuItem>

@@ -7,6 +7,7 @@ import rateLimit from 'express-rate-limit';
 import process from 'node:process';
 import { HealthCheckSchema } from '@crypto-dashboard/shared';
 import { prisma } from './lib/db.js';
+import authRoutes from './routes/auth.js';
 
 const app = express();
 
@@ -58,6 +59,8 @@ app.use(
 );
 
 /* ---------- Routes ---------- */
+app.use('/auth', authRoutes);
+
 app.get('/health', (_req: Request, res: Response) => {
   const payload = { ok: true, ts: new Date().toISOString() };
   const parsed = HealthCheckSchema.safeParse(payload);

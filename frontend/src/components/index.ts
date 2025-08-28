@@ -8,6 +8,10 @@ export { StatsCard } from "./dashboard/stats-card"
 export { CryptoTable } from "./dashboard/crypto-table"
 export { PortfolioOverview } from "./dashboard/portfolio-overview"
 
+// Auth components
+export { LoginForm } from "./auth/login-form"
+export { RegisterForm } from "./auth/register-form"
+
 // UI components (re-export from shadcn/ui)
 export * from "./ui/button"
 export * from "./ui/card"
