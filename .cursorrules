@@ -1,0 +1,148 @@
+# .cursorrules
+
+# --- Global guardrails ---
+- description: |
+    Project guardrails:
+    - Use TypeScript everywhere (strict mode)
+    - Prefer async/await with error handling
+    - Use early returns to reduce nesting
+    - Descriptive variable/function names; avoid abbreviations
+    - Never use `any` unless justified with a TODO to remove
+    - Validate all external data with Zod (HTTP, DB, env)
+    - Do not store sensitive data in localStorage
+    - JWTs in httpOnly cookies (not localStorage/js-cookie)
+    - Keep secrets in env vars; never commit them
+    - Always add loading + error states for async UI
+  globs: ["**/*"]
+  alwaysApply: true
+
+# --- Tech stack enforcement ---
+- description: |
+    Enforce stack choices:
+    - FE: Next.js 14 App Router + React 18 + TS strict
+    - BE: Express.js under /backend or /server (not Next API routes)
+    - DB: PostgreSQL + Prisma
+    - Validation: Zod (shared schemas in /shared or /src/lib/validation)
+    - Data fetching: TanStack Query (client) / fetch (server)
+    - Real-time: Server-Sent Events only (no WebSockets)
+    - Styling: Tailwind CSS + shadcn/ui
+  globs: ["**/*"]
+  alwaysApply: true
+
+# --- Frontend rules ---
+- description: |
+    Frontend rules:
+    - Use functional React components in TS (.tsx)
+    - Routes live in /app/** (App Router)
+    - Use TanStack Query for server state; show loading + error states
+    - Use Zustand only for ephemeral UI state (modals, filters)
+    - Prefer server components / `use server` to reduce client JS
+    - Styling via Tailwind utility classes + shadcn/ui
+  globs:
+    - "frontend/**/*"
+    - "app/**/*"
+    - "src/app/**/*"
+    - "components/**/*"
+    - "src/components/**/*"
+    - "**/*.tsx"
+
+# --- Backend rules ---
+- description: |
+    Backend rules:
+    - Use Express.js under /backend or /server (not Next API routes)
+    - Validate requests/responses with shared Zod schemas
+    - Implement rate limiting and input sanitization
+    - Use async/await with try/catch; return typed error shapes
+    - Use Prisma; avoid raw SQL unless parameterized + reviewed
+  globs:
+    - "backend/**/*"
+    - "server/**/*"
+    - "src/backend/**/*"
+    - "src/server/**/*"
+
+# --- Block Next.js API routes ---
+- description: |
+    Do NOT add API routes in Next.js (app/api/**).
+    All APIs belong in Express under /backend or /server.
+  globs:
+    - "app/api/**/*"
+    - "src/app/api/**/*"
+
+# --- Security basics ---
+- description: |
+    Security:
+    - JWTs must be in httpOnly, Secure cookies
+    - Cookies: SameSite=None + Secure in prod, path="/"
+    - Always app.set("trust proxy", 1) in Express
+    - Implement API rate limiting
+    - Hash passwords with bcrypt or argon2
+    - Never log secrets, JWTs, or raw PII
+  globs: ["**/*"]
+  alwaysApply: true
+
+# --- SSE rules ---
+- description: |
+    Real-time = SSE only:
+    - Express routes with text/event-stream
+    - res.flushHeaders(), keep-alive headers
+    - Heartbeat ping every ~20s
+    - No compression/proxy buffering on SSE routes
+  globs:
+    - "backend/**/*"
+    - "server/**/*"
+    - "src/backend/**/*"
+    - "src/server/**/*"
+
+# --- Shared Zod schemas ---
+- description: |
+    Zod schemas:
+    - Store in /shared or /src/lib/validation
+    - Infer types with z.infer<> for consistency
+    - Validate at network boundaries
+  globs:
+    - "shared/**/*"
+    - "src/lib/validation/**/*"
+    - "packages/validation/**/*"
+    - "**/*.ts"
+    - "**/*.tsx"
+
+# --- Database conventions ---
+- description: |
+    Prisma/Postgres conventions:
+    - Keep schema in /prisma/schema.prisma
+    - Use migrations; no schema drift
+    - Generate Prisma client on postinstall
+    - Encapsulate queries in service/repo layer
+    - Validate inputs before writes; validate outputs before sending to client
+  globs:
+    - "prisma/**/*"
+    - "backend/**/*"
+    - "server/**/*"
+    - "src/backend/**/*"
+    - "src/server/**/*"
+
+# --- Config/package hygiene ---
+- description: |
+    Config/package hygiene:
+    - TypeScript strict mode must be enabled
+    - Keep eslint/prettier configs consistent
+    - package.json must have scripts: dev, build, start, lint, typecheck, prisma:generate, prisma:migrate
+    - No unused dependencies
+    - Pin versions for infra-critical deps (express, prisma, react-query, etc.)
+  globs:
+    - "package.json"
+    - "tsconfig.json"
+    - ".eslintrc*"
+    - ".prettierrc*"
+
+# --- API boundary ---
+- description: |
+    API calls:
+    - Always go through a single fetch helper (lib/apiFetch.ts)
+    - Must set credentials: "include"
+    - Base URL from NEXT_PUBLIC_API_URL
+  globs:
+    - "frontend/**/*"
+    - "src/**/*"
+    - "**/*.ts"
+    - "**/*.tsx"
