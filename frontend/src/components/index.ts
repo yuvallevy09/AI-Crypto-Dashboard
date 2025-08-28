@@ -1,0 +1,31 @@
+// Layout components
+export { DashboardLayout } from "./layout/dashboard-layout"
+export { Header } from "./layout/header"
+export { Sidebar } from "./layout/sidebar"
+
+// Dashboard components
+export { StatsCard } from "./dashboard/stats-card"
+export { CryptoTable } from "./dashboard/crypto-table"
+export { PortfolioOverview } from "./dashboard/portfolio-overview"
+
+// UI components (re-export from shadcn/ui)
+export * from "./ui/button"
+export * from "./ui/card"
+export * from "./ui/input"
+export * from "./ui/table"
+export * from "./ui/badge"
+export * from "./ui/avatar"
+export * from "./ui/dropdown-menu"
+export * from "./ui/sheet"
+export * from "./ui/dialog"
+export * from "./ui/tabs"
+export * from "./ui/form"
+export * from "./ui/label"
+export * from "./ui/select"
+export * from "./ui/separator"
+export * from "./ui/skeleton"
+export * from "./ui/progress"
+export * from "./ui/alert"
+export * from "./ui/alert-dialog"
+export * from "./ui/loading"
+export * from "./ui/error-boundary"
