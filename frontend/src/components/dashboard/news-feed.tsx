@@ -11,9 +11,9 @@ interface NewsItem {
   id: number
   title: string
   published_at: string
-  url: string
-  domain: string
-  source: {
+  url?: string
+  domain?: string
+  source?: {
     title: string
     region: string
     domain: string
@@ -22,7 +22,7 @@ interface NewsItem {
     code: string
     title: string
   }>
-  votes: {
+  votes?: {
     positive: number
     negative: number
     important: number
@@ -49,6 +49,7 @@ export function NewsFeed() {
 
         const response = await apiClient.getLatestNews(10)
         if (response.success) {
+          console.log('News data received:', response.data)
           setNews(response.data)
         } else {
           setError('Failed to load news')
@@ -71,7 +72,8 @@ export function NewsFeed() {
     return () => clearInterval(interval)
   }, [])
 
-  const getSentimentIcon = (votes: { positive: number; negative: number; important: number }) => {
+  const getSentimentIcon = (votes?: { positive: number; negative: number; important: number }) => {
+    if (!votes) return null
     if (votes.important > 0) {
       return <AlertTriangle className="h-4 w-4 text-yellow-500" />
     }
@@ -84,7 +86,10 @@ export function NewsFeed() {
     return null
   }
 
-  const getSentimentBadge = (votes: { positive: number; negative: number; important: number }) => {
+  const getSentimentBadge = (votes?: { positive: number; negative: number; important: number }) => {
+    if (!votes) {
+      return <Badge variant="secondary">Neutral</Badge>
+    }
     if (votes.important > 0) {
       return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">Important</Badge>
     }
@@ -163,7 +168,7 @@ export function NewsFeed() {
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          {news.map((item) => (
+          {news.filter(item => item.title).map((item) => (
             <div key={item.id} className="border-b border-gray-100 pb-4 last:border-b-0">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
@@ -176,7 +181,7 @@ export function NewsFeed() {
                   
                   <div className="flex items-center gap-2 mb-2">
                     <span className="text-xs text-muted-foreground">
-                      {item.source.title}
+                      {item.source?.title || 'Unknown Source'}
                     </span>
                     <span className="text-xs text-muted-foreground">•</span>
                     <span className="text-xs text-muted-foreground">
@@ -204,8 +209,9 @@ export function NewsFeed() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => window.open(item.url, '_blank')}
+                  onClick={() => item.url && window.open(item.url, '_blank')}
                   className="flex-shrink-0"
+                  disabled={!item.url}
                 >
                   <ExternalLink className="h-4 w-4" />
                 </Button>

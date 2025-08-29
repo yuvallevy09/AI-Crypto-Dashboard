@@ -37,8 +37,53 @@ export type CoinGeckoCoin = z.infer<typeof CoinGeckoCoinSchema>
 class CoinGeckoService {
   private baseUrl = 'https://api.coingecko.com/api/v3'
   private apiKey = process.env.COINGECKO_API_KEY
+  private lastRequestTime = 0
+  // Conservative rate limiting: 1 request per 1.2 seconds (50 requests per minute)
+  private readonly rateLimitDelay = 1200 // 1.2 seconds between requests
+  
+  // Simple in-memory cache with TTL
+  private cache = new Map<string, { data: any; timestamp: number }>()
+  private readonly cacheTTL = 5 * 60 * 1000 // 5 minutes cache for price data
+
+  private getCacheKey(endpoint: string, params: Record<string, any>): string {
+    const sortedParams = Object.keys(params)
+      .sort()
+      .map(key => `${key}=${params[key]}`)
+      .join('&')
+    return `${endpoint}?${sortedParams}`
+  }
+
+  private getCachedData(key: string): any | null {
+    const cached = this.cache.get(key)
+    if (cached && Date.now() - cached.timestamp < this.cacheTTL) {
+      return cached.data
+    }
+    return null
+  }
+
+  private setCachedData(key: string, data: any): void {
+    this.cache.set(key, { data, timestamp: Date.now() })
+  }
 
   private async request<T>(endpoint: string, params: Record<string, any> = {}): Promise<T> {
+    // Check cache first
+    const cacheKey = this.getCacheKey(endpoint, params)
+    const cachedData = this.getCachedData(cacheKey)
+    if (cachedData) {
+      console.log('Using cached CoinGecko data for:', cacheKey)
+      return cachedData as T
+    }
+
+    // Rate limiting
+    const now = Date.now()
+    const timeSinceLastRequest = now - this.lastRequestTime
+    
+    if (timeSinceLastRequest < this.rateLimitDelay) {
+      await new Promise(resolve => setTimeout(resolve, this.rateLimitDelay - timeSinceLastRequest))
+    }
+    
+    this.lastRequestTime = Date.now()
+    console.log('CoinGecko API request:', endpoint)
     const url = new URL(`${this.baseUrl}${endpoint}`)
     
     // Add API key if available
@@ -60,11 +105,22 @@ class CoinGeckoService {
         },
       })
 
+      if (response.status === 429) {
+        console.warn('CoinGecko rate limit hit, using cached data if available')
+        throw new Error('Rate limit exceeded')
+      }
+
       if (!response.ok) {
+        const errorText = await response.text()
+        console.error(`CoinGecko API error ${response.status}:`, errorText)
         throw new Error(`CoinGecko API error: ${response.status} ${response.statusText}`)
       }
 
       const data = await response.json()
+      
+      // Cache the successful response
+      this.setCachedData(cacheKey, data)
+      
       return data
     } catch (error) {
       console.error('CoinGecko API request failed:', error)
@@ -129,6 +185,18 @@ class CoinGeckoService {
   async getTrendingCoins(): Promise<any> {
     const data = await this.request<any>('/search/trending')
     return (data as any).coins
+  }
+
+  /**
+   * Get current API usage statistics
+   */
+  getUsageStats() {
+    return {
+      lastRequestTime: this.lastRequestTime,
+      cacheSize: this.cache.size,
+      rateLimitDelay: this.rateLimitDelay,
+      cacheTTL: this.cacheTTL,
+    }
   }
 }
 
