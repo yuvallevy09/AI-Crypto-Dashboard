@@ -303,4 +303,22 @@ router.post('/ai/news-sentiment', authenticateToken, async (req: Request, res: R
   }
 })
 
+// Get API usage statistics
+router.get('/api-usage', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const usageStats = cryptoPanicService.getUsageStats()
+    
+    res.json({
+      success: true,
+      data: usageStats
+    })
+  } catch (error) {
+    console.error('Error getting API usage stats:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get usage stats'
+    })
+  }
+})
+
 export default router

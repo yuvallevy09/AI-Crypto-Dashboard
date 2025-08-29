@@ -127,8 +127,8 @@ class CoinGeckoService {
    * Get trending coins
    */
   async getTrendingCoins(): Promise<any> {
-    const data = await this.request('/search/trending')
-    return data.coins
+    const data = await this.request<any>('/search/trending')
+    return (data as any).coins
   }
 }
 

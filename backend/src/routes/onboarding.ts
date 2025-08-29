@@ -1,38 +1,15 @@
 import { Router, Request, Response } from 'express'
-import jwt from 'jsonwebtoken'
 import { OnboardingSchema } from '@crypto-dashboard/shared'
 import { prisma } from '../lib/db.js'
+import { authenticateToken } from '../middleware/auth.js'
 
 const router = Router()
-
-// Middleware to verify JWT token
-const authenticateToken = (req: Request, res: Response, next: any) => {
-  const token = req.cookies.auth_token
-
-  if (!token) {
-    return res.status(401).json({
-      success: false,
-      error: 'No authentication token'
-    })
-  }
-
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any
-    req.user = decoded
-    next()
-  } catch (error) {
-    return res.status(401).json({
-      success: false,
-      error: 'Invalid authentication token'
-    })
-  }
-}
 
 // Complete onboarding endpoint
 router.post('/complete', authenticateToken, async (req: Request, res: Response) => {
   try {
     const { interestedAssets, investorType, contentPreferences } = OnboardingSchema.parse(req.body)
-    const userId = req.user.userId
+    const userId = req.user!.id
 
     // Update user with onboarding preferences
     const updatedUser = await prisma.user.update({
@@ -101,7 +78,7 @@ router.post('/complete', authenticateToken, async (req: Request, res: Response) 
 // Get onboarding status
 router.get('/status', authenticateToken, async (req: Request, res: Response) => {
   try {
-    const userId = req.user.userId
+    const userId = req.user!.id
 
     const user = await prisma.user.findUnique({
       where: { id: userId },

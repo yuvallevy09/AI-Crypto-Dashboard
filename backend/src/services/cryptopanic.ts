@@ -1,18 +1,22 @@
 import { z } from 'zod'
 
-// CryptoPanic API response schemas
+// CryptoPanic API v2 response schemas
 const CryptoPanicNewsSchema = z.object({
   id: z.number(),
+  slug: z.string(),
   title: z.string(),
+  description: z.string().nullable(),
   published_at: z.string(),
-  url: z.string(),
-  domain: z.string(),
+  created_at: z.string(),
+  kind: z.string(),
+  // Note: v2 API doesn't include source, currencies, votes, or metadata in the basic response
+  // We'll handle these as optional fields for backward compatibility
   source: z.object({
     title: z.string(),
     region: z.string(),
     domain: z.string(),
     path: z.string().nullable(),
-  }),
+  }).optional(),
   currencies: z.array(z.object({
     code: z.string(),
     title: z.string(),
@@ -29,7 +33,7 @@ const CryptoPanicNewsSchema = z.object({
     toxic: z.number(),
     saved: z.number(),
     comments: z.number(),
-  }),
+  }).optional(),
   metadata: z.object({
     title: z.string().nullable(),
     description: z.string().nullable(),
@@ -39,7 +43,7 @@ const CryptoPanicNewsSchema = z.object({
       width: z.number().nullable(),
       height: z.number().nullable(),
     }).nullable(),
-  }).nullable(),
+  }).optional(),
 })
 
 const CryptoPanicResponseSchema = z.object({
@@ -55,10 +59,12 @@ export type CryptoPanicNews = z.infer<typeof CryptoPanicNewsSchema>
 const fallbackNews: CryptoPanicNews[] = [
   {
     id: 1,
+    slug: "bitcoin-surges-past-45000",
     title: "Bitcoin Surges Past $45,000 as Institutional Adoption Grows",
+    description: "Bitcoin continues its upward momentum as institutional investors show increasing interest in the cryptocurrency market.",
     published_at: new Date().toISOString(),
-    url: "https://example.com/bitcoin-surge",
-    domain: "example.com",
+    created_at: new Date().toISOString(),
+    kind: "news",
     source: {
       title: "Crypto News",
       region: "US",
@@ -79,14 +85,16 @@ const fallbackNews: CryptoPanicNews[] = [
       saved: 12,
       comments: 8,
     },
-    metadata: null,
+    metadata: undefined,
   },
   {
     id: 2,
+    slug: "ethereum-20-upgrade-promising",
     title: "Ethereum 2.0 Upgrade Shows Promising Results",
+    description: "The latest Ethereum upgrade demonstrates significant improvements in scalability and efficiency.",
     published_at: new Date(Date.now() - 3600000).toISOString(),
-    url: "https://example.com/ethereum-upgrade",
-    domain: "example.com",
+    created_at: new Date(Date.now() - 3600000).toISOString(),
+    kind: "news",
     source: {
       title: "Blockchain Daily",
       region: "US",
@@ -107,7 +115,7 @@ const fallbackNews: CryptoPanicNews[] = [
       saved: 9,
       comments: 6,
     },
-    metadata: null,
+    metadata: undefined,
   },
   {
     id: 3,
@@ -135,7 +143,7 @@ const fallbackNews: CryptoPanicNews[] = [
       saved: 7,
       comments: 4,
     },
-    metadata: null,
+    metadata: undefined,
   },
   {
     id: 4,
@@ -164,7 +172,7 @@ const fallbackNews: CryptoPanicNews[] = [
       saved: 6,
       comments: 3,
     },
-    metadata: null,
+    metadata: undefined,
   },
   {
     id: 5,
@@ -192,20 +200,22 @@ const fallbackNews: CryptoPanicNews[] = [
       saved: 5,
       comments: 2,
     },
-    metadata: null,
+    metadata: undefined,
   },
 ]
 
 class CryptoPanicService {
-  private baseUrl = 'https://cryptopanic.com/api/v1'
+  private baseUrl = 'https://cryptopanic.com/api/developer/v2'
   private apiKey = process.env.CRYPTOPANIC_API_KEY
   private requestCount = 0
   private lastRequestTime = 0
-  private readonly rateLimitDelay = 1000 // 1 second between requests
+  private readonly rateLimitDelay = 500 // 500ms between requests (2 req/sec)
+  private monthlyRequestCount = 0
+  private lastMonthReset = new Date().getMonth()
   
-  // Simple in-memory cache
+  // Simple in-memory cache with longer TTL for developer plan
   private cache = new Map<string, { data: CryptoPanicNews[]; timestamp: number }>()
-  private readonly cacheTTL = 5 * 60 * 1000 // 5 minutes
+  private readonly cacheTTL = 60 * 60 * 1000 // 1 hour cache (since news is 24h delayed anyway)
 
   private getCacheKey(endpoint: string, params: Record<string, any>): string {
     const sortedParams = Object.keys(params)
@@ -236,7 +246,19 @@ class CryptoPanicService {
       return cachedData as T
     }
 
-    // Rate limiting
+    // Check monthly quota (100 requests per month for developer plan)
+    const currentMonth = new Date().getMonth()
+    if (currentMonth !== this.lastMonthReset) {
+      this.monthlyRequestCount = 0
+      this.lastMonthReset = currentMonth
+    }
+
+    if (this.monthlyRequestCount >= 100) {
+      console.warn('Monthly quota exceeded (100 requests), using fallback data')
+      throw new Error('Monthly quota exceeded')
+    }
+
+    // Rate limiting (2 requests per second)
     const now = Date.now()
     const timeSinceLastRequest = now - this.lastRequestTime
     
@@ -246,6 +268,9 @@ class CryptoPanicService {
     
     this.lastRequestTime = Date.now()
     this.requestCount++
+    this.monthlyRequestCount++
+    
+    console.log(`CryptoPanic API request #${this.monthlyRequestCount}/100 this month`)
 
     const url = new URL(`${this.baseUrl}${endpoint}`)
     
@@ -293,14 +318,13 @@ class CryptoPanicService {
     try {
       const data = await this.request<any>('/posts/', {
         filter: 'hot',
-        public: true,
         limit,
       })
 
       const results = CryptoPanicResponseSchema.parse(data).results
       
       // Cache the results
-      const cacheKey = this.getCacheKey('/posts/', { filter: 'hot', public: true, limit })
+      const cacheKey = this.getCacheKey('/posts/', { filter: 'hot', limit })
       this.setCachedData(cacheKey, results)
       
       return results
@@ -319,14 +343,13 @@ class CryptoPanicService {
       const data = await this.request<any>('/posts/', {
         currencies: currenciesParam,
         filter: 'hot',
-        public: true,
         limit,
       })
 
       const results = CryptoPanicResponseSchema.parse(data).results
       
       // Cache the results
-      const cacheKey = this.getCacheKey('/posts/', { currencies: currenciesParam, filter: 'hot', public: true, limit })
+      const cacheKey = this.getCacheKey('/posts/', { currencies: currenciesParam, filter: 'hot', limit })
       this.setCachedData(cacheKey, results)
       
       return results
@@ -350,14 +373,13 @@ class CryptoPanicService {
     try {
       const data = await this.request<any>('/posts/', {
         filter: sentiment,
-        public: true,
         limit,
       })
 
       const results = CryptoPanicResponseSchema.parse(data).results
       
       // Cache the results
-      const cacheKey = this.getCacheKey('/posts/', { filter: sentiment, public: true, limit })
+      const cacheKey = this.getCacheKey('/posts/', { filter: sentiment, limit })
       this.setCachedData(cacheKey, results)
       
       return results
@@ -367,6 +389,7 @@ class CryptoPanicService {
       return fallbackNews
         .filter(news => {
           const votes = news.votes
+          if (!votes) return true // If no votes data, include the news
           switch (sentiment) {
             case 'positive':
               return votes.positive > votes.negative
@@ -389,14 +412,13 @@ class CryptoPanicService {
     try {
       const data = await this.request<any>('/posts/', {
         q: query,
-        public: true,
         limit,
       })
 
       const results = CryptoPanicResponseSchema.parse(data).results
       
       // Cache the results
-      const cacheKey = this.getCacheKey('/posts/', { q: query, public: true, limit })
+      const cacheKey = this.getCacheKey('/posts/', { q: query, limit })
       this.setCachedData(cacheKey, results)
       
       return results
@@ -423,14 +445,13 @@ class CryptoPanicService {
     try {
       const data = await this.request<any>('/posts/', {
         filter: 'rising',
-        public: true,
         limit,
       })
 
       const results = CryptoPanicResponseSchema.parse(data).results
       
       // Cache the results
-      const cacheKey = this.getCacheKey('/posts/', { filter: 'rising', public: true, limit })
+      const cacheKey = this.getCacheKey('/posts/', { filter: 'rising', limit })
       this.setCachedData(cacheKey, results)
       
       return results
@@ -438,8 +459,21 @@ class CryptoPanicService {
       console.warn('Using fallback news data for trending due to API error:', error)
       // Return fallback news sorted by positive votes (trending)
       return fallbackNews
-        .sort((a, b) => b.votes.positive - a.votes.positive)
+        .sort((a, b) => (b.votes?.positive || 0) - (a.votes?.positive || 0))
         .slice(0, limit)
+    }
+  }
+
+  /**
+   * Get current API usage statistics
+   */
+  getUsageStats() {
+    return {
+      monthlyRequests: this.monthlyRequestCount,
+      monthlyLimit: 100,
+      requestsRemaining: 100 - this.monthlyRequestCount,
+      lastRequestTime: this.lastRequestTime,
+      cacheSize: this.cache.size,
     }
   }
 }

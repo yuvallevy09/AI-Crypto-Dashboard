@@ -61,7 +61,14 @@ export function NewsFeed() {
       }
     }
 
+    // Initial fetch
     fetchNews()
+
+    // Set up interval for refreshing news every 5 minutes (to respect 100 req/month quota)
+    const interval = setInterval(fetchNews, 5 * 60 * 1000)
+
+    // Cleanup interval on unmount
+    return () => clearInterval(interval)
   }, [])
 
   const getSentimentIcon = (votes: { positive: number; negative: number; important: number }) => {

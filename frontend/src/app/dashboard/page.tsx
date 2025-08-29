@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { StatsCard } from "@/components/dashboard/stats-card"
 import { CryptoTable } from "@/components/dashboard/crypto-table"
@@ -38,6 +39,7 @@ interface PortfolioAsset {
 }
 
 export default function DashboardPage() {
+  const router = useRouter()
   const [cryptoData, setCryptoData] = useState<CryptoData[]>([])
   const [portfolioData, setPortfolioData] = useState<PortfolioAsset[]>([])
   const [loading, setLoading] = useState(true)
@@ -49,10 +51,24 @@ export default function DashboardPage() {
         setLoading(true)
         setError(null)
 
+        // First check if user is authenticated
+        console.log('Checking authentication...')
+        const authResponse = await apiClient.getCurrentUser()
+        if (!authResponse.success || !authResponse.user) {
+          console.error('User not authenticated')
+          router.push('/auth')
+          return
+        }
+
         // Fetch top cryptocurrencies
+        console.log('Fetching crypto data...')
         const cryptoResponse = await apiClient.getTopCoins(10)
+        console.log('Crypto response:', cryptoResponse)
         if (cryptoResponse.success) {
           setCryptoData(cryptoResponse.data)
+        } else {
+          console.error('Crypto API error:', cryptoResponse.error)
+          throw new Error(cryptoResponse.error || 'Failed to fetch crypto data')
         }
 
         // For now, use sample portfolio data
