@@ -62,10 +62,10 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
     setError("")
 
     try {
-      const success = await login(formData.email, formData.password)
+      const result = await login(formData.email, formData.password)
       
-      if (success) {
-        router.push("/dashboard")
+      if (result.success) {
+        router.push(result.redirectTo || "/dashboard")
       } else {
         setError("Invalid email or password")
       }

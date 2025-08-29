@@ -1,96 +1,102 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { StatsCard } from "@/components/dashboard/stats-card"
 import { CryptoTable } from "@/components/dashboard/crypto-table"
 import { PortfolioOverview } from "@/components/dashboard/portfolio-overview"
+import { NewsFeed } from "@/components/dashboard/news-feed"
 import { 
   TrendingUp, 
   DollarSign, 
   Users, 
   Activity,
   Wallet,
-  Eye
+  Eye,
+  Loader2
 } from "lucide-react"
+import { apiClient } from "@/lib/api"
 
-// Sample data - this will be replaced with real API calls
-const sampleCryptoData = [
-  {
-    id: "1",
-    symbol: "BTC",
-    name: "Bitcoin",
-    price: 43250.50,
-    change24h: 2.5,
-    marketCap: 850000000000,
-    volume24h: 25000000000,
-  },
-  {
-    id: "2",
-    symbol: "ETH",
-    name: "Ethereum",
-    price: 2650.75,
-    change24h: 1.8,
-    marketCap: 320000000000,
-    volume24h: 15000000000,
-  },
-  {
-    id: "3",
-    symbol: "SOL",
-    name: "Solana",
-    price: 98.25,
-    change24h: -0.5,
-    marketCap: 45000000000,
-    volume24h: 2800000000,
-  },
-  {
-    id: "4",
-    symbol: "ADA",
-    name: "Cardano",
-    price: 0.485,
-    change24h: 3.2,
-    marketCap: 17000000000,
-    volume24h: 850000000,
-  },
-  {
-    id: "5",
-    symbol: "DOT",
-    name: "Polkadot",
-    price: 7.85,
-    change24h: 1.1,
-    marketCap: 9500000000,
-    volume24h: 420000000,
-  },
-]
+interface CryptoData {
+  id: string
+  symbol: string
+  name: string
+  current_price: number
+  price_change_percentage_24h: number
+  market_cap: number
+  total_volume: number
+  image: string
+}
 
-const samplePortfolioData = [
-  {
-    symbol: "BTC",
-    name: "Bitcoin",
-    amount: 0.5,
-    currentPrice: 43250.50,
-    buyPrice: 41000.00,
-    allocation: 45.2,
-  },
-  {
-    symbol: "ETH",
-    name: "Ethereum",
-    amount: 3.2,
-    currentPrice: 2650.75,
-    buyPrice: 2400.00,
-    allocation: 32.1,
-  },
-  {
-    symbol: "SOL",
-    name: "Solana",
-    amount: 25.0,
-    currentPrice: 98.25,
-    buyPrice: 85.00,
-    allocation: 22.7,
-  },
-]
+interface PortfolioAsset {
+  symbol: string
+  name: string
+  amount: number
+  currentPrice: number
+  buyPrice: number
+  allocation: number
+}
 
 export default function DashboardPage() {
-  const totalPortfolioValue = samplePortfolioData.reduce(
+  const [cryptoData, setCryptoData] = useState<CryptoData[]>([])
+  const [portfolioData, setPortfolioData] = useState<PortfolioAsset[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+
+        // Fetch top cryptocurrencies
+        const cryptoResponse = await apiClient.getTopCoins(10)
+        if (cryptoResponse.success) {
+          setCryptoData(cryptoResponse.data)
+        }
+
+        // For now, use sample portfolio data
+        // In a real app, this would come from the user's portfolio
+        const samplePortfolioData: PortfolioAsset[] = [
+          {
+            symbol: "BTC",
+            name: "Bitcoin",
+            amount: 0.5,
+            currentPrice: cryptoData.find(c => c.symbol === 'BTC')?.current_price || 43000,
+            buyPrice: 41000,
+            allocation: 45.2,
+          },
+          {
+            symbol: "ETH",
+            name: "Ethereum",
+            amount: 3.2,
+            currentPrice: cryptoData.find(c => c.symbol === 'ETH')?.current_price || 2600,
+            buyPrice: 2400,
+            allocation: 32.1,
+          },
+          {
+            symbol: "SOL",
+            name: "Solana",
+            amount: 25.0,
+            currentPrice: cryptoData.find(c => c.symbol === 'SOL')?.current_price || 98,
+            buyPrice: 85,
+            allocation: 22.7,
+          },
+        ]
+
+        setPortfolioData(samplePortfolioData)
+      } catch (err) {
+        console.error('Error fetching dashboard data:', err)
+        setError('Failed to load dashboard data')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [])
+
+  const totalPortfolioValue = portfolioData.reduce(
     (total, asset) => total + (asset.currentPrice * asset.amount),
     0
   )
@@ -103,6 +109,37 @@ export default function DashboardPage() {
   const handleAddAsset = () => {
     console.log("Opening add asset dialog")
     // TODO: Implement add asset functionality
+  }
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+            <p className="text-muted-foreground">Loading dashboard data...</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    )
+  }
+
+  if (error) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <p className="text-destructive mb-4">{error}</p>
+            <button 
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-md"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </DashboardLayout>
+    )
   }
 
   return (
@@ -119,7 +156,7 @@ export default function DashboardPage() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <StatsCard
             title="Total Market Cap"
-            value="$2.1T"
+            value={`$${(cryptoData.reduce((sum, coin) => sum + coin.market_cap, 0) / 1e12).toFixed(1)}T`}
             change="+2.3%"
             changeType="positive"
             icon={DollarSign}
@@ -127,7 +164,7 @@ export default function DashboardPage() {
           />
           <StatsCard
             title="24h Volume"
-            value="$45.2B"
+            value={`$${(cryptoData.reduce((sum, coin) => sum + coin.total_volume, 0) / 1e9).toFixed(1)}B`}
             change="+5.1%"
             changeType="positive"
             icon={Activity}
@@ -151,13 +188,23 @@ export default function DashboardPage() {
           />
         </div>
 
-        {/* Portfolio Overview */}
-        <PortfolioOverview
-          totalValue={totalPortfolioValue}
-          totalChange={8.2}
-          assets={samplePortfolioData}
-          onAddAsset={handleAddAsset}
-        />
+        {/* Main Content Grid */}
+        <div className="grid gap-6 lg:grid-cols-3">
+          {/* Portfolio Overview - Takes 2 columns */}
+          <div className="lg:col-span-2">
+            <PortfolioOverview
+              totalValue={totalPortfolioValue}
+              totalChange={8.2}
+              assets={portfolioData}
+              onAddAsset={handleAddAsset}
+            />
+          </div>
+
+          {/* News Feed - Takes 1 column */}
+          <div className="lg:col-span-1">
+            <NewsFeed />
+          </div>
+        </div>
 
         {/* Crypto Market Table */}
         <div className="space-y-4">
@@ -166,12 +213,20 @@ export default function DashboardPage() {
             <div className="flex items-center space-x-2">
               <Eye className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm text-muted-foreground">
-                Top 5 by market cap
+                Top {cryptoData.length} by market cap
               </span>
             </div>
           </div>
           <CryptoTable 
-            data={sampleCryptoData} 
+            data={cryptoData.map(coin => ({
+              id: coin.id,
+              symbol: coin.symbol,
+              name: coin.name,
+              price: coin.current_price,
+              change24h: coin.price_change_percentage_24h,
+              marketCap: coin.market_cap,
+              volume24h: coin.total_volume,
+            }))} 
             onAddToWatchlist={handleAddToWatchlist}
           />
         </div>

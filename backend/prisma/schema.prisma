@@ -18,6 +18,12 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Onboarding preferences
+  onboardingCompleted Boolean @default(false)
+  interestedAssets    String[] // Array of crypto symbols user is interested in
+  investorType        String?  // "HODLer", "Day Trader", "NFT Collector", etc.
+  contentPreferences  String[] // Array of content types: "Market News", "Charts", "Social", "Fun"
+
   // Relations
   portfolios Portfolio[]
   watchlists Watchlist[]

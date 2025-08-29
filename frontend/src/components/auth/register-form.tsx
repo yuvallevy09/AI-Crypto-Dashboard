@@ -63,10 +63,10 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
     setError("")
 
     try {
-      const success = await register(formData.email, formData.username, formData.password)
+      const result = await register(formData.email, formData.username, formData.password)
       
-      if (success) {
-        router.push("/dashboard")
+      if (result.success) {
+        router.push(result.redirectTo || "/onboarding")
       } else {
         setError("Registration failed. Please try again.")
       }

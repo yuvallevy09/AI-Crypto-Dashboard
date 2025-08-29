@@ -8,6 +8,8 @@ import process from 'node:process';
 import { HealthCheckSchema } from '@crypto-dashboard/shared';
 import { prisma } from './lib/db.js';
 import authRoutes from './routes/auth.js';
+import onboardingRoutes from './routes/onboarding.js';
+import cryptoRoutes from './routes/crypto.js';
 
 const app = express();
 
@@ -60,6 +62,8 @@ app.use(
 
 /* ---------- Routes ---------- */
 app.use('/auth', authRoutes);
+app.use('/onboarding', onboardingRoutes);
+app.use('/crypto', cryptoRoutes);
 
 app.get('/health', (_req: Request, res: Response) => {
   const payload = { ok: true, ts: new Date().toISOString() };

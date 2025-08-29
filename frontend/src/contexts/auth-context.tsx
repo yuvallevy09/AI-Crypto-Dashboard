@@ -6,8 +6,8 @@ import { User } from "@crypto-dashboard/shared"
 interface AuthContextType {
   user: User | null
   loading: boolean
-  login: (email: string, password: string) => Promise<boolean>
-  register: (email: string, username: string, password: string) => Promise<boolean>
+  login: (email: string, password: string) => Promise<{ success: boolean; redirectTo?: string }>
+  register: (email: string, username: string, password: string) => Promise<{ success: boolean; redirectTo?: string }>
   logout: () => Promise<void>
   checkAuth: () => Promise<void>
 }
@@ -17,6 +17,25 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+
+  const checkOnboardingStatus = async (): Promise<string> => {
+    try {
+      const response = await fetch("http://localhost:5001/onboarding/status", {
+        credentials: "include",
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          return data.onboardingCompleted ? '/dashboard' : '/onboarding'
+        }
+      }
+      return '/onboarding'
+    } catch (error) {
+      console.error("Onboarding status check failed:", error)
+      return '/onboarding'
+    }
+  }
 
   const checkAuth = async () => {
     try {
@@ -37,7 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = async (email: string, password: string): Promise<{ success: boolean; redirectTo?: string }> => {
     try {
       const response = await fetch("http://localhost:5001/auth/login", {
         method: "POST",
@@ -52,16 +71,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (data.success && data.user) {
         setUser(data.user)
-        return true
+        const redirectTo = await checkOnboardingStatus()
+        return { success: true, redirectTo }
       }
-      return false
+      return { success: false }
     } catch (error) {
       console.error("Login failed:", error)
-      return false
+      return { success: false }
     }
   }
 
-  const register = async (email: string, username: string, password: string): Promise<boolean> => {
+  const register = async (email: string, username: string, password: string): Promise<{ success: boolean; redirectTo?: string }> => {
     try {
       const response = await fetch("http://localhost:5001/auth/register", {
         method: "POST",
@@ -76,12 +96,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (data.success && data.user) {
         setUser(data.user)
-        return true
+        // New users should always go to onboarding
+        return { success: true, redirectTo: '/onboarding' }
       }
-      return false
+      return { success: false }
     } catch (error) {
       console.error("Registration failed:", error)
-      return false
+      return { success: false }
     }
   }
 
